@@ -11,6 +11,7 @@
 /db/schema.rb
 /files/*
 /log/*.log*
+/log/*.pid
 /log/mongrel_debug
 /public/dispatch.*
 /public/plugin_assets
@@ -20,5 +21,7 @@
 /tmp/sockets/*
 /tmp/test/*
 /vendor/rails
+/vendor/plugins/redmine_clf2
+/config/mongrel_cluster.yml
 *.rbc
 doc/app

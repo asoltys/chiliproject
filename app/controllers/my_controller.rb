@@ -65,6 +65,10 @@ class MyController < ApplicationController
     end
   end
 
+  def activity
+    redirect_to :controller => 'activities', :action => 'index', :user_id => User.current.id
+  end
+
   # Manage user's password
   def password
     @user = User.current

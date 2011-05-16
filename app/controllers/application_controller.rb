@@ -54,8 +54,6 @@ class ApplicationController < ActionController::Base
     require_dependency "repository/#{scm.underscore}"
   end
 
-  before_filter :rewrite_url
-
   def rewrite_url
     url = use_canonical_domain(request.url)
     url = strip_lang_parameter(url) 
@@ -68,12 +66,25 @@ class ApplicationController < ActionController::Base
   def strip_lang_parameter(url)
     return url unless params[:lang]
 
+    if I18n.available_locales.include?(params[:lang].to_sym)
+      session[:language] = params[:lang]
+    end
+
+    query_string = request.query_string.sub(/&lang(\=[^&]*)?(?=&|$)|^lang(\=[^&]*)?(&|$)/, '')
+
     url = url.sub(request.host, canonical_host(params[:lang].to_sym))
-    url = url.sub(/[\?|&]lang=#{params[:lang]}/, "")
+    url = url.sub(/\?.*/, '')
+    url = url + "?#{query_string}" unless query_string.empty?
+    return url
   end
 
-  def use_canonical_domain(url)
-    locale = locale_from_subdomain
+  def canonical_url(locale)
+    # "#{request.protocol}#{canonical_host(locale)}:#{request.port}#{request.path}#{request.query_string}"
+    request.url.sub(request.host, canonical_host(locale))
+  end
+
+  def use_canonical_domain(url, locale = nil)
+    locale ||= locale_from_subdomain
     url.sub(request.host, canonical_host(locale))
   end
 
@@ -109,6 +120,12 @@ class ApplicationController < ActionController::Base
     subdomain = [@subdomains.first] if subdomain.empty?
     
     @locales[subdomain.first.join(".")].first 
+  end
+
+  def set_localization
+    rewrite_url
+    session[:language] ||= locale_from_subdomain unless (request.path == '/' && params[:lang])
+    set_language_if_valid(session[:language].to_s)
   end
 
   def user_setup
@@ -161,22 +178,6 @@ class ApplicationController < ActionController::Base
     # no check needed if user is already logged in
     return true if User.current.logged?
     require_login if Setting.login_required?
-  end
-
-  def set_localization
-    lang = nil
-    if User.current.logged?
-      lang = find_language(User.current.language)
-    end
-    if lang.nil? && request.env['HTTP_ACCEPT_LANGUAGE']
-      accept_lang = parse_qvalues(request.env['HTTP_ACCEPT_LANGUAGE']).first
-      if !accept_lang.blank?
-        accept_lang = accept_lang.downcase
-        lang = find_language(accept_lang) || find_language(accept_lang.split('-').first)
-      end
-    end
-    lang ||= Setting.default_language
-    set_language_if_valid(lang)
   end
 
   def require_login

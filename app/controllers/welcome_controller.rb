@@ -18,9 +18,13 @@
 class WelcomeController < ApplicationController
   caches_action :robots
 
-  def index
-    @news = News.latest User.current
-    @projects = Project.latest User.current
+  def index 
+    if session[:language]
+      @news = News.latest User.current
+      @projects = Project.latest User.current
+    else
+      render :action => 'welcome', :layout => 'wp-pa' 
+    end
   end
   
   def robots

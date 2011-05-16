@@ -26,6 +26,29 @@ module ApplicationHelper
   extend Forwardable
   def_delegators :wiki_helper, :wikitoolbar_for, :heads_for_wiki_formatter
 
+  def canonical_host(locale)
+    @canonical_subdomains = {
+      :en => ['tbs-sct', 'ircan-rican'],
+      :fr => ['sct-tbs', 'rican-ircan']
+    }
+
+    cd = @canonical_subdomains[locale]
+    cd = @canonical_subdomains.values.first if cd.nil?
+    subdomains = request.subdomains
+    subdomains.pop(cd.size)
+    (subdomains + cd + request.domain.split(".")).join(".")
+  end
+
+  def canonical_url(locale)
+    # "#{request.protocol}#{canonical_host(locale)}:#{request.port}#{request.path}#{request.query_string}"
+    request.url.sub(request.host, canonical_host(locale))
+  end
+
+  def use_canonical_domain(url, locale = nil)
+    locale ||= locale_from_subdomain
+    url.sub(request.host, canonical_host(locale))
+  end
+
   # Return true if user is authorized for controller/action, otherwise false
   def authorize_for(controller, action)
     User.current.allowed_to?({:controller => controller, :action => action}, @project)

@@ -54,79 +54,82 @@ class ApplicationController < ActionController::Base
     require_dependency "repository/#{scm.underscore}"
   end
 
-  def rewrite_url
-    url = use_canonical_domain(request.url)
-    url = strip_lang_parameter(url) 
-      
-    if request.get? && url != request.url
-      head :moved_permanently, :location => url 
-    end
-  end
+      def load_clf2_subdomains_file
+        domain_file = File.join(Rails.plugins['redmine_clf2'].directory,'config','subdomains.yml')
+        if File.exists?(domain_file)
+          a = YAML::load(File.read(domain_file))
+          @subdomains = a.map(&:values).flatten.map{|e| e.split('.')}
+          @locales = a.map(&:keys).flatten
+          @canonical_subdomains = {}
+          @locales.map{|l| i = a.index{|e| e.keys.include? l}; @canonical_subdomains[l] = a[i][l].first;}
+          @locale_subdomains = {}
+          a.each_with_index{|e,i| a[i].values.flatten.map{|d| @locale_subdomains[d] = [a[i].keys[0]]}}
+          logger.debug "Loaded CLF2 subdomain file"
+        else
+          logger.error "CLF2 subdomain file not found at #{domain_file}. Subdomain specific languages will not be used."
+        end
+      end
 
-  def strip_lang_parameter(url)
-    return url unless params[:lang]
+      def rewrite_url
+        url = use_canonical_domain(request.url)
+        url = strip_lang_parameter(url) 
+          
+        if request.get? && url != request.url
+          head :moved_permanently, :location => url 
+        end
+      end
 
-    if I18n.available_locales.include?(params[:lang].to_sym)
-      session[:language] = params[:lang]
-    end
+      def strip_lang_parameter(url)
+        return url unless params[:lang]
 
-    query_string = request.query_string.sub(/&lang(\=[^&]*)?(?=&|$)|^lang(\=[^&]*)?(&|$)/, '')
+        if I18n.available_locales.include?(params[:lang].to_sym)
+          session[:language] = params[:lang]
+        end
 
-    url = url.sub(request.host, canonical_host(params[:lang].to_sym))
-    url = url.sub(/\?.*/, '')
-    url = url + "?#{query_string}" unless query_string.empty?
-    return url
-  end
+        query_string = request.query_string.sub(/&lang(\=[^&]*)?(?=&|$)|^lang(\=[^&]*)?(&|$)/, '')
 
-  def canonical_url(locale)
-    # "#{request.protocol}#{canonical_host(locale)}:#{request.port}#{request.path}#{request.query_string}"
-    request.url.sub(request.host, canonical_host(locale))
-  end
+        url = url.sub(request.host, canonical_host(params[:lang].to_sym))
+        url = url.sub(/\?.*/, '')
+        url = url + "?#{query_string}" unless query_string.empty?
+        return url
+      end
 
-  def use_canonical_domain(url, locale = nil)
-    locale ||= locale_from_subdomain
-    url.sub(request.host, canonical_host(locale))
-  end
+      def canonical_url(locale)
+        # "#{request.protocol}#{canonical_host(locale)}:#{request.port}#{request.path}#{request.query_string}"
+        request.url.sub(request.host, canonical_host(locale))
+      end
 
-  def canonical_host(locale)
-    @canonical_subdomains = {
-      :en => ['tbs-sct', 'ircan-rican'],
-      :fr => ['sct-tbs', 'rican-ircan']
-    }
+      def use_canonical_domain(url, locale = nil)
+        locale ||= locale_from_subdomain
+        url.sub(request.host, canonical_host(locale))
+      end
 
-    cd = @canonical_subdomains[locale]
-    cd = @canonical_subdomains.values.first if cd.nil?
-    subdomains = request.subdomains
-    subdomains.pop(cd.size)
-    (subdomains + cd + request.domain.split(".")).join(".")
-  end
+      def canonical_host(locale)
+        cd = @canonical_subdomains[locale]
+        cd ||= @canonical_subdomains[@locales.first]
+        cd = cd.split(".")
+        subdomains = request.subdomains
+        subdomains.pop(cd.size)
+        (subdomains + cd + request.domain.split(".")).join(".")
+      end
 
-  def locale_from_subdomain
-    @subdomains = [
-      ['tbs-sct', 'ircan-rican'],
-      ['ircan'],
-      ['sct-tbs', 'rican-ircan'],
-      ['rican']
-    ]
+      def locale_from_subdomain
+        subdomain = @subdomains.select{|s| s == request.subdomains.last(s.size)} 
+        subdomain = [@subdomains.first] if subdomain.empty?
+        
+        @locale_subdomains[subdomain.first.join(".")].first 
+      end
 
-    @locales = {
-      'tbs-sct.ircan-rican' => [:en],
-      'ircan' => [:en],
-      'sct-tbs.rican-ircan' => [:fr],
-      'rican' => [:fr]
-    }
+      def set_localization
+        load_clf2_subdomains_file
+        rewrite_url
 
-    subdomain = @subdomains.select{|s| s == request.subdomains.last(s.size)} 
-    subdomain = [@subdomains.first] if subdomain.empty?
-    
-    @locales[subdomain.first.join(".")].first 
-  end
+        params[:lang] ||= locale_from_subdomain
+        session[:language] = params[:lang] unless request.path == '/'
 
-  def set_localization
-    rewrite_url
-    session[:language] ||= locale_from_subdomain unless (request.path == '/' && params[:lang])
-    set_language_if_valid(session[:language].to_s)
-  end
+        set_language_if_valid(params[:lang].to_s)
+      end
+
 
   def user_setup
     # Check the settings cache for each request

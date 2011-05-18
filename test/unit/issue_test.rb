@@ -630,44 +630,17 @@ class IssueTest < ActiveSupport::TestCase
     
     i.init_journal(User.find(2))
     i.description = new_description
-    assert_difference 'Journal.count', 1 do
-      assert_difference 'JournalDetail.count', 1 do
-        i.save!
-      end
+    assert_difference 'IssueJournal.count', 1 do
+      i.save!
     end
     
-    detail = JournalDetail.first(:order => 'id DESC')
-    assert_equal i, detail.journal.journalized
-    assert_equal 'attr', detail.property
-    assert_equal 'description', detail.prop_key
-    assert_equal old_description, detail.old_value
-    assert_equal new_description, detail.value
+    journal = IssueJournal.first(:order => 'id DESC')
+    assert_equal i, journal.journaled
+    assert journal.changes.has_key? "description"
+    assert_equal old_description, journal.old_value("description")
+    assert_equal new_description, journal.value("description")
   end
   
-  def test_saving_twice_should_not_duplicate_journal_details
-    i = Issue.find(:first)
-    i.init_journal(User.find(2), 'Some notes')
-    # initial changes
-    i.subject = 'New subject'
-    i.done_ratio = i.done_ratio + 10
-    assert_difference 'Journal.count' do
-      assert i.save
-    end
-    # 1 more change
-    i.priority = IssuePriority.find(:first, :conditions => ["id <> ?", i.priority_id])
-    assert_no_difference 'Journal.count' do
-      assert_difference 'JournalDetail.count', 1 do
-        i.save
-      end
-    end
-    # no more change
-    assert_no_difference 'Journal.count' do
-      assert_no_difference 'JournalDetail.count' do
-        i.save
-      end
-    end
-  end
-
   def test_all_dependent_issues
     IssueRelation.delete_all
     assert IssueRelation.create!(:issue_from => Issue.find(1), :issue_to => Issue.find(2), :relation_type => IssueRelation::TYPE_PRECEDES)

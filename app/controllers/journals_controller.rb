@@ -32,26 +32,16 @@ class JournalsController < ApplicationController
     sort_update(@query.sortable_columns)
     
     if @query.valid?
-      @journals = @query.journals(:order => "#{Journal.table_name}.created_on DESC", 
-                                  :limit => 25)
+      @journals = @query.issue_journals(:order => "#{Journal.table_name}.created_at DESC", 
+                                        :limit => 25)
     end
     @title = (@project ? @project.name : Setting.app_title) + ": " + (@query.new_record? ? l(:label_changes_details) : @query.name)
     render :layout => false, :content_type => 'application/atom+xml'
   rescue ActiveRecord::RecordNotFound
     render_404
   end
-  
-  def diff
-    @issue = @journal.issue
-    if params[:detail_id].present?
-      @detail = @journal.details.find_by_id(params[:detail_id])
-    else
-      @detail = @journal.details.detect {|d| d.prop_key == 'description'}
-    end
-    (render_404; return false) unless @issue && @detail
-    @diff = Redmine::Helpers::Diff.new(@detail.value, @detail.old_value)
-  end
-  
+
+  # Used when replying to an issue or journal
   def new
     journal = Journal.find(params[:journal_id]) if params[:journal_id]
     if journal
@@ -78,11 +68,12 @@ class JournalsController < ApplicationController
   def edit
     (render_403; return false) unless @journal.editable_by?(User.current)
     if request.post?
-      @journal.update_attributes(:notes => params[:notes]) if params[:notes]
+      @journal.update_attribute(:notes, params[:notes]) if params[:notes]
       @journal.destroy if @journal.details.empty? && @journal.notes.blank?
       call_hook(:controller_journals_edit_post, { :journal => @journal, :params => params})
       respond_to do |format|
-        format.html { redirect_to :controller => 'issues', :action => 'show', :id => @journal.journalized_id }
+        format.html { redirect_to :controller => @journal.journaled.class.name.pluralize.downcase,
+          :action => 'show', :id => @journal.journaled_id }
         format.js { render :action => 'update' }
       end
     else

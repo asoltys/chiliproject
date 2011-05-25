@@ -36,7 +36,7 @@ Rails::Initializer.run do |config|
   
   # Activate observers that should always be running
   # config.active_record.observers = :cacher, :garbage_collector
-  config.active_record.observers = :message_observer, :issue_observer, :journal_observer, :news_observer, :document_observer, :wiki_content_observer, :comment_observer
+  config.active_record.observers = :journal_observer, :message_observer, :issue_observer, :news_observer, :document_observer, :wiki_content_observer, :comment_observer
 
   # Make Active Record use UTC-base instead of local time
   # config.active_record.default_timezone = :utc
@@ -50,11 +50,8 @@ Rails::Initializer.run do |config|
   # It will automatically turn deliveries on
   config.action_mailer.perform_deliveries = false
 
-  config.gem 'rubytree', :lib => 'tree'
-  config.gem 'coderay', :version => '~>0.9.7'
-  
   # Load any local configuration that is kept out of source control
-  # (e.g. gems, patches).
+  # (e.g. patches).
   if File.exists?(File.join(File.dirname(__FILE__), 'additional_environment.rb'))
     instance_eval File.read(File.join(File.dirname(__FILE__), 'additional_environment.rb'))
   end

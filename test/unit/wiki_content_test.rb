@@ -18,7 +18,7 @@
 require File.expand_path('../../test_helper', __FILE__)
 
 class WikiContentTest < ActiveSupport::TestCase
-  fixtures :wikis, :wiki_pages, :wiki_contents, :wiki_content_versions, :users
+  fixtures :wikis, :wiki_pages, :wiki_contents, :journals, :users
 
   def setup
     @wiki = Wiki.find(1)
@@ -36,7 +36,7 @@ class WikiContentTest < ActiveSupport::TestCase
     assert_equal 1, content.version
     assert_equal 1, content.versions.length
     assert_equal "Content text", content.text
-    assert_equal "My comment", content.comments
+    assert_equal "My comment", content.versions.last.notes
     assert_equal User.find(1), content.author
     assert_equal content.text, content.versions.last.text
   end
@@ -72,9 +72,9 @@ class WikiContentTest < ActiveSupport::TestCase
   end
   
   def test_fetch_history
-    assert !@page.content.versions.empty?
-    @page.content.versions.each do |version|
-      assert_kind_of String, version.text
+    assert !@page.content.journals.empty?
+    @page.content.journals.each do |journal|
+      assert_kind_of String, journal.text
     end
   end
   

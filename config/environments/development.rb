@@ -21,3 +21,13 @@ begin
 rescue
   config.action_controller.session = {:domain => '.smackaho.st'}
 end
+
+if defined?(PhusionPassenger)
+PhusionPassenger.on_event(:starting_worker_process) do |forked|
+if forked
+require 'ruby-debug'
+Debugger.wait_connection = true
+Debugger.start_remote
+end
+end
+end

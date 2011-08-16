@@ -10,6 +10,8 @@
 /db/*.sqlite3
 /db/schema.rb
 /files/*
+/lib/redmine/scm/adapters/mercurial/redminehelper.pyc
+/lib/redmine/scm/adapters/mercurial/redminehelper.pyo
 /log/*.log*
 /log/*.pid
 /log/mongrel_debug
@@ -25,3 +27,7 @@
 /config/mongrel_cluster.yml
 *.rbc
 doc/app
+/.bundle
+/Gemfile.lock
+/Gemfile.local
+/.rvmrc*

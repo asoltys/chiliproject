@@ -1,20 +1,34 @@
+#-- copyright
+# ChiliProject is a project management system.
+#
+# Copyright (C) 2010-2011 the ChiliProject Team
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# See doc/COPYRIGHT.rdoc for more details.
+#++
+
 class AutoCompletesController < ApplicationController
   before_filter :find_project
-  
+
   def issues
     @issues = []
     q = params[:q].to_s
-    query = (params[:scope] == "all" && Setting.cross_project_issue_relations?) ? Issue : @project.issues
-    if q.match(/^\d+$/)
-      @issues << query.visible.find_by_id(q.to_i)
-    end
-    unless q.blank?
-      @issues += query.visible.find(:all,
+
+    if q.present?
+      query = (params[:scope] == "all" && Setting.cross_project_issue_relations?) ? Issue : @project.issues
+
+      @issues |= query.visible.find_all_by_id(q.to_i) if q =~ /^\d+$/
+
+      @issues |= query.visible.find(:all,
                                     :limit => 10,
                                     :order => "#{Issue.table_name}.id ASC",
                                     :conditions => ["LOWER(#{Issue.table_name}.subject) LIKE :q OR CAST(#{Issue.table_name}.id AS CHAR(13)) LIKE :q", {:q => "%#{q.downcase}%" }])
     end
-    @issues.compact!
+
     render :layout => false
   end
 
